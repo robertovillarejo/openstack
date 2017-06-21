@@ -10,3 +10,6 @@ ext/
 modern.json
 modern.jsonp
 resources/sass/.sass-cache/
+*.vagrant
+controller/.vagrant/
+compute/.vagrant/

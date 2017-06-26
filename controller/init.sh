@@ -108,3 +108,4 @@ export OS_IMAGE_API_VERSION=2' > /etc/profile.d/admin-openrc.sh
 ## Add the user role to the demo project and user
 
 #openstack role add --project demo --user demo user
+

@@ -137,3 +137,23 @@ openstack --os-auth-url http://controller:5000/v3 \
 --os-project-domain-name default --os-user-domain-name default \
 --os-project-name demo --os-username demo token issue
 
+
+## Install Glance (Image Service)
+
+mysql --execute="CREATE DATABASE glance;"
+mysql --execute="GRANT ALL PRIVILEGES ON glance.* TO 'glance'@'localhost' IDENTIFIED BY 'glance';"
+mysql --execute="GRANT ALL PRIVILEGES ON glance.* TO 'glance'@'%' IDENTIFIED BY 'glance';"
+
+source /etc/profile.d/admin-openrc.sh
+
+openstack user create --domain default --password glance glance
+openstack role add --project service --user glance admin
+openstack service create --name glance --description "OpenStack Image" image
+openstack endpoint create --region RegionOne image public http://controller:9292
+openstack endpoint create --region RegionOne image internal http://controller:9292
+openstack endpoint create --region RegionOne image admin http://controller:9292
+
+
+apt install -y glance
+
+

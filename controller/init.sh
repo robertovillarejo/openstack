@@ -34,7 +34,7 @@ collation-server = utf8_general_ci
 character-set-server = utf8' > /etc/mysql/mariadb.conf.d/99-openstack.cnf
 
 service mysql restart
-
+##mysql_secure_installation
 
 ## Install rabbitmqctl
 apt install -y rabbitmq-server
@@ -54,7 +54,7 @@ mysql --execute="GRANT ALL PRIVILEGES ON keystone.* TO 'keystone'@'%' IDENTIFIED
 
 apt install -y keystone
 
-## Modify the the file: /etc/keystone/keystone.conf 
+## Modify the the file: /etc/keystone/keystone.conf
 sed -i '/\#connection = <None>/c connection = mysql+pymysql://keystone:keystone@controller/keystone' /etc/keystone/keystone.conf
 sed -i "2842s/\#provider = fernet/provider = fernet/g" /etc/keystone/keystone.conf
 
@@ -155,5 +155,54 @@ openstack endpoint create --region RegionOne image admin http://controller:9292
 
 
 apt install -y glance
+##/etc/glance/glance-api.conf
+#[database]
+sed -i '/\#connection = <None>/c connection = mysql+pymysql://glance:glance@controller/glance' /etc/glance/glance-api.conf
+#[keystone_authtoken]
+sed -i '/\#auth_uri = <None>/c auth_uri = http://controller:5000' /etc/glance/glance-api.conf
+sed -i "3296i auth_url = http://controller:35357" /etc/glance/glance-api.conf
+##sed -i '/\#auth_url = <None>/c auth_url = http://controller:35357' /etc/glance/glance-api.conf
+sed -i '/\#memcached_servers = <None>/c memcached_servers = controller:11211' /etc/glance/glance-api.conf
+sed -i '/\#auth_type = <None>/c auth_type = password' /etc/glance/glance-api.conf
+sed -i "3450i project_domain_name  = default" /etc/glance/glance-api.conf
+sed -i "3450i user_domain_name  = default" /etc/glance/glance-api.conf
+sed -i "3450i project_name  = service" /etc/glance/glance-api.conf
+sed -i "3450i username  = glance" /etc/glance/glance-api.conf
+sed -i "3450i password  = glance" /etc/glance/glance-api.conf
+#[paste_deploy]
+sed -i '/\#flavor = keystone/c flavor = keystone' /etc/glance/glance-api.conf
+#[glance_store]
+sed -i '/\#stores = file,http/c stores = file,http' /etc/glance/glance-api.conf
+sed -i '/\#default_store = file/c default_store = file' /etc/glance/glance-api.conf
+sed -i "2294i filesystem_store_datadir = /var/lib/glance/images" /etc/glance/glance-api.conf
 
+#glance-registry.conf
+#[database]
+sed -i '/\#connection = <None>/c connection = mysql+pymysql://glance:glance@controller/glance' /etc/glance/glance-registry.conf
+#[keystone_authtoken]
+sed -i '/\#auth_uri = <None>/c auth_uri = http://controller:5000' /etc/glance/glance-registry.conf
+sed -i '/\#auth_url = <None>/c auth_url = http://controller:35357' /etc/glance/glance-registry.conf
+sed -i '/\#memcached_servers = <None>/c memcached_servers = controller:11211' /etc/glance/glance-registry.conf
+sed -i '/\#auth_type = <None>/c auth_type = password' /etc/glance/glance-registry.conf
+sed -i "1373i project_domain_name  = default" /etc/glance/glance-registry.conf
+sed -i "1373i user_domain_name  = default" /etc/glance/glance-registry.conf
+sed -i "1373i project_name  = service" /etc/glance/glance-registry.conf
+sed -i "1373i username  = glance" /etc/glance/glance-registry.conf
+sed -i "1373i password  = glance" /etc/glance/glance-registry.conf
+#[paste_deploy]
+sed -i '/\#flavor = keystone/c flavor = keystone' /etc/glance/glance-registry.conf
 
+## Populate the image service database
+/bin/sh -c "glance-manage db_sync" glance
+
+service glance-registry restart
+service glance-api restart
+
+## Verify operation
+source /etc/profile.d/admin-openrc.sh
+wget http://download.cirros-cloud.net/0.3.5/cirros-0.3.5-x86_64-disk.img
+openstack image create "cirros" \
+  --file cirros-0.3.5-x86_64-disk.img \
+  --disk-format qcow2 --container-format bare \
+  --public
+  openstack image list

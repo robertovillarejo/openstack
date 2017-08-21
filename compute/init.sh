@@ -68,3 +68,48 @@ if [ "$hardware_acceleration" == "0" ]; then
 fi
 
 service nova-compute restart
+
+##Neutron
+apt install -y neutron-linuxbridge-agent
+
+##/etc/neutron/neutron.conf
+##[database]
+##REVISAR!!!!
+sed -i "s|connection = sqlite:////var/lib/neutron/neutron.sqlite|#connection = sqlite:////var/lib/neutron/neutron.sqlite|" /etc/neutron/neutron.conf
+##sed -i '/\connection = sqlite:////var/lib/neutron/neutron.sqlite/c #connection = sqlite:////var/lib/neutron/neutron.sqlite' /etc/neutron/neutron.conf
+sed -i '/\#transport_url = <None>/c transport_url = rabbit://openstack:openstack_pass@controller' /etc/neutron/neutron.conf
+sed -i '/\#auth_strategy = keystone/c auth_strategy = keystone' /etc/neutron/neutron.conf
+sed -i '/\#auth_uri = <None>/c auth_uri = http://controller:5000' /etc/neutron/neutron.conf
+sed -i "769i auth_url = http://controller:35357" /etc/neutron/neutron.conf
+sed -i '/\#memcached_servers = <None>/c memcached_servers = controller:11211' /etc/neutron/neutron.conf
+sed -i '/\#auth_type = <None>/c auth_type = password' /etc/neutron/neutron.conf
+sed -i "769i project_domain_name = default" /etc/neutron/neutron.conf
+sed -i "769i user_domain_name = default" /etc/neutron/neutron.conf
+sed -i "769i project_name = service" /etc/neutron/neutron.conf
+sed -i "769i username = neutron" /etc/neutron/neutron.conf
+sed -i "769i password = neutron" /etc/neutron/neutron.conf
+
+##/etc/neutron/plugins/ml2/linuxbridge_agent.ini
+sed -i '/\#physical_interface_mappings =/c physical_interface_mappings = provider:enp0s8' /etc/neutron/plugins/ml2/linuxbridge_agent.ini
+sed -i '/\#enable_vxlan = true/c enable_vxlan = true' /etc/neutron/plugins/ml2/linuxbridge_agent.ini
+sed -i '/\#local_ip = <None>/c local_ip = 10.0.0.11' /etc/neutron/plugins/ml2/linuxbridge_agent.ini
+sed -i '/\#l2_population = false/c l2_population = true' /etc/neutron/plugins/ml2/linuxbridge_agent.ini
+sed -i '/\#enable_security_group = true/c enable_security_group = true' /etc/neutron/plugins/ml2/linuxbridge_agent.ini
+sed -i '/\#firewall_driver = <None>/c firewall_driver = neutron.agent.linux.iptables_firewall.IptablesFirewallDriver' /etc/neutron/plugins/ml2/linuxbridge_agent.ini
+
+##Configure the Compute service to use the Networking service
+##/etc/nova/nova.conf
+echo '[neutron]
+url = http://controller:9696
+auth_url = http://controller:35357
+auth_type = password
+project_domain_name = default
+user_domain_name = default
+region_name = RegionOne
+project_name = service
+username = neutron
+password = neutron' > /etc/nova/nova.conf
+
+##Finalize Installation
+service nova-compute restart
+service neutron-linuxbridge-agent restart

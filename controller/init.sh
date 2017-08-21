@@ -309,3 +309,117 @@ openstack image create "cirros" \
   openstack catalog list
   openstack image list
   nova-status upgrade check
+
+  ##Neutron: Networking service
+  mysql --execute="CREATE DATABASE neutron;"
+  mysql --execute="GRANT ALL PRIVILEGES ON neutron.* TO 'neutron'@'localhost' IDENTIFIED BY 'neutron';"
+  mysql --execute="GRANT ALL PRIVILEGES ON neutron.* TO 'neutron'@'%' IDENTIFIED BY 'neutron';"
+
+  source /etc/profile.d/admin-openrc.sh
+  openstack user create --domain default --password neutron neutron
+  openstack role add --project service --user neutron admin
+  openstack service create --name neutron --description "OpenStack Networking" network
+  openstack endpoint create --region RegionOne network public http://controller:9696
+  openstack endpoint create --region RegionOne network internal http://controller:9696
+  openstack endpoint create --region RegionOne network admin http://controller:9696
+
+  ##Configure networking options
+  apt-get update
+  apt install -y neutron-server neutron-plugin-ml2 neutron-linuxbridge-agent neutron-l3-agent neutron-dhcp-agent neutron-metadata-agent
+
+  ##/etc/neutron/neutron.conf
+  ##[database]
+  sed -i "s|connection = sqlite:////var/lib/neutron/neutron.sqlite|connection = mysql+pymysql://neutron:neutron@controller/neutron|" /etc/neutron/neutron.conf
+  ##[DEFAULT]
+  sed -i '/\#service_plugins =/c service_plugins = router' /etc/neutron/neutron.conf
+  sed -i '/\#allow_overlapping_ips = false/c allow_overlapping_ips = true' /etc/neutron/neutron.conf
+  sed -i '/\#transport_url = <None>/c transport_url = rabbit://openstack:openstack_pass@controller' /etc/neutron/neutron.conf
+  sed -i '/\#auth_strategy = keystone/c auth_strategy = keystone' /etc/neutron/neutron.conf
+  ##[keystone_authtoken]
+  sed -i '/\#auth_uri = <None>/c auth_uri = http://controller:5000' /etc/neutron/neutron.conf
+  sed -i "860i auth_url = http://controller:35357" /etc/neutron/neutron.conf
+  sed -i '/\#memcached_servers = <None>/c memcached_servers = controller:11211' /etc/neutron/neutron.conf
+  sed -i '/\#auth_type = <None>/c auth_type = password' /etc/neutron/neutron.conf
+  sed -i "1054i project_domain_name = default" /etc/neutron/neutron.conf
+  sed -i "1054i user_domain_name = default" /etc/neutron/neutron.conf
+  sed -i "1054i project_name = service" /etc/neutron/neutron.conf
+  sed -i "1054i username = neutron" /etc/neutron/neutron.conf
+  sed -i "1054i password = neutron" /etc/neutron/neutron.conf
+  ##[DEFAULT]
+  sed -i '/\#notify_nova_on_port_status_changes = true/c notify_nova_on_port_status_changes = true' /etc/neutron/neutron.conf
+  sed -i '/\#notify_nova_on_port_data_changes = true/c notify_nova_on_port_data_changes = true' /etc/neutron/neutron.conf
+  ##[nova]
+  sed -i '/\#auth_url = <None>/c auth_url = http://controller:35357' /etc/neutron/neutron.conf
+  ##auth_type = password was set before in [keystone_authtoken]
+  sed -i '/\#project_domain_name = <None>/c project_domain_name = default' /etc/neutron/neutron.conf
+  sed -i '/\#user_domain_name = <None>/c user_domain_name = default' /etc/neutron/neutron.conf
+  sed -i "1111i region_name = RegionOne" /etc/neutron/neutron.conf
+  sed -i '/\#project_name = <None>/c project_name = service' /etc/neutron/neutron.conf
+  sed -i '/\#username = <None>/c username = nova' /etc/neutron/neutron.conf
+  sed -i '/\#password = <None>/c password = nova' /etc/neutron/neutron.conf
+
+  ##/etc/neutron/plugins/ml2/ml2_conf.ini
+  ##[ml2]
+  sed -i '/\#type_drivers = local,flat,vlan,gre,vxlan,geneve/c type_drivers = flat,vlan,vxlan' /etc/neutron/plugins/ml2/ml2_conf.ini
+  sed -i '/\#tenant_network_types = local/c tenant_network_types = vxlan' /etc/neutron/plugins/ml2/ml2_conf.ini
+  sed -i '/\#mechanism_drivers =/c mechanism_drivers = linuxbridge,l2population' /etc/neutron/plugins/ml2/ml2_conf.ini
+  sed -i '/\#extension_drivers =/c extension_drivers = port_security' /etc/neutron/plugins/ml2/ml2_conf.ini
+  ##[ml2_type_flat]
+  sed -i '/\#flat_networks = */c flat_networks = provider' /etc/neutron/plugins/ml2/ml2_conf.ini
+  ##[ml2_type_vxlan]
+  sed -i "224i vni_ranges = 1:1000" /etc/neutron/plugins/ml2/ml2_conf.ini
+  ##[securitygroup]
+  sed -i '/\#enable_ipset = true/c enable_ipset = true' /etc/neutron/plugins/ml2/ml2_conf.ini
+
+  ##/etc/neutron/plugins/ml2/linuxbridge_agent.ini
+  ##[linux_bridge]
+  sed -i '/\#physical_interface_mappings =/c physical_interface_mappings = provider:enp0s8' /etc/neutron/plugins/ml2/linuxbridge_agent.ini
+  ##[vxlan]
+  sed -i '/\#enable_vxlan = true/c enable_vxlan = true' /etc/neutron/plugins/ml2/linuxbridge_agent.ini
+  sed -i '/\#local_ip = <None>/c local_ip = 10.0.0.11' /etc/neutron/plugins/ml2/linuxbridge_agent.ini
+  sed -i '/\#l2_population = false/c l2_population = true' /etc/neutron/plugins/ml2/linuxbridge_agent.ini
+  ##[securitygroup]
+  sed -i '/\#enable_security_group = true/c enable_security_group = true' /etc/neutron/plugins/ml2/linuxbridge_agent.ini
+  sed -i '/\#firewall_driver = <None>/c firewall_driver = neutron.agent.linux.iptables_firewall.IptablesFirewallDriver' /etc/neutron/plugins/ml2/linuxbridge_agent.ini
+
+  ##/etc/neutron/l3_agent.ini
+  ##[DEFAULT]
+  sed -i '/\#interface_driver = <None>/c interface_driver = linuxbridge' /etc/neutron/l3_agent.ini
+
+  ##/etc/neutron/dhcp_agent.ini
+  ##[DEFAULT]
+  sed -i '/\#interface_driver = <None>/c interface_driver = linuxbridge' /etc/neutron/dhcp_agent.ini
+  sed -i '/\#dhcp_driver = neutron.agent.linux.dhcp.Dnsmasq/c dhcp_driver = neutron.agent.linux.dhcp.Dnsmasq' /etc/neutron/dhcp_agent.ini
+  sed -i '/\#enable_isolated_metadata = false/c enable_isolated_metadata = true' /etc/neutron/dhcp_agent.ini
+
+  ##/etc/neutron/metadata_agent.ini
+  ##[DEFAULT]
+  sed -i '/\#nova_metadata_ip = 127.0.0.1/c nova_metadata_ip = controller' /etc/neutron/metadata_agent.ini
+  sed -i '/\#metadata_proxy_shared_secret =/c metadata_proxy_shared_secret = openstack_pass' /etc/neutron/metadata_agent.ini
+
+  ##/etc/nova/nova.conf
+  ##[neutron]
+  sed -i "s|#url=http://127.0.0.1:9696|url = http://controller:9696|" /etc/nova/nova.conf
+  sed -i '/\#auth_url=<None>/c auth_url = http://controller:35357' /etc/nova/nova.conf
+  sed -i '/\#auth_type=<None>/c auth_type = password' /etc/nova/nova.conf
+  sed -i '/\#project_domain_name=<None>/c project_domain_name = default' /etc/nova/nova.conf
+  sed -i '/\#user_domain_name=<None>/c user_domain_name = default' /etc/nova/nova.conf
+  sed -i '/\#region_name=RegionOne/c region_name = RegionOne' /etc/nova/nova.conf
+  sed -i '/\#project_name=<None>/c project_name = service' /etc/nova/nova.conf
+  sed -i '/\#username=<None>/c username = neutron' /etc/nova/nova.conf
+  sed -i '/\#password=<None>/c password=neutron' /etc/nova/nova.conf
+  sed -i '/\#service_metadata_proxy=false/c service_metadata_proxy = true' /etc/nova/nova.conf
+  sed -i '/\#metadata_proxy_shared_secret =/c metadata_proxy_shared_secret = openstack_pass' /etc/nova/nova.conf
+
+  ##Populating neutron database
+  /bin/sh -c "neutron-db-manage --config-file /etc/neutron/neutron.conf --config-file /etc/neutron/plugins/ml2/ml2_conf.ini upgrade head" neutron
+  service nova-api restart
+  service neutron-server restart
+  service neutron-linuxbridge-agent restart
+  service neutron-dhcp-agent restart
+  service neutron-metadata-agent restart
+
+  ##Verify operation
+  source /etc/profile.d/admin-openrc.sh
+  openstack extension list --network
+  openstack network agent list

@@ -482,3 +482,63 @@ service apache2 restart
 ##Verify cinder operation
 source /etc/profile.d/admin-openrc.sh
 openstack volume service list
+
+##Swift installation
+source /etc/profile.d/admin-openrc.sh
+openstack user create --domain default --password swift swift
+openstack role add --project service --user swift admin
+openstack service create --name swift --description "OpenStack Object Storage" object-store
+openstack endpoint create --region RegionOne object-store public http://controller:8080/v1/AUTH_%\(tenant_id\)s
+openstack endpoint create --region RegionOne object-store internal http://controller:8080/v1/AUTH_%\(tenant_id\)s
+openstack endpoint create --region RegionOne object-store admin http://controller:8080/v1
+apt-get install -y swift swift-proxy python-swiftclient python-keystoneclient python-keystonemiddleware memcached
+mkdir /etc/swift
+curl -o /etc/swift/proxy-server.conf https://git.openstack.org/cgit/openstack/swift/plain/etc/proxy-server.conf-sample?h=stable/newton
+
+##
+##[DEFAULT]
+##bind_port = 8080
+sed -i '/\# user = swift/c user = swift' /etc/swift/proxy-server.conf
+sed -i "s|# swift_dir = /etc/swift|swift_dir = /etc/swift|" /etc/swift/proxy-server.conf
+##[pipeline:main]
+sed -i '/\pipeline = catch_errors gatekeeper healthcheck proxy-logging cache container_sync bulk tempurl ratelimit tempauth copy container-quotas account-quotas slo dlo versioned_writes proxy-logging proxy-server/c pipeline = catch_errors gatekeeper healthcheck proxy-logging cache container_sync bulk ratelimit authtoken keystoneauth container-quotas account-quotas slo dlo versioned_writes proxy-logging proxy-server' /etc/swift/proxy-server.conf
+##[app:proxy-server]
+##use = egg:swift#proxy already set
+sed -i '/\# account_autocreate = false/c account_autocreate = True' /etc/swift/proxy-server.conf
+##[filter:keystoneauth]
+sed -i '/\# \[filter:keystoneauth\]/c \[filter:keystoneauth\]' /etc/swift/proxy-server.conf
+sed -i '/\# use = egg:swift#keystoneauth/c use = egg:swift#keystoneauth' /etc/swift/proxy-server.conf
+sed -i '/\# operator_roles = admin, swiftoperator/c # operator_roles = admin,user' /etc/swift/proxy-server.conf
+##[filter:authtoken]
+sed -i '/\# paste.filter_factory = keystonemiddleware.auth_token:filter_factory/c paste.filter_factory = keystonemiddleware.auth_token:filter_factory' /etc/swift/proxy-server.conf
+sed -i "s|# auth_uri = http://keystonehost:5000|auth_uri = http://controller:5000|" /etc/swift/proxy-server.conf
+sed -i "s|# auth_url = http://keystonehost:35357|auth_url = http://controller:35357|" /etc/swift/proxy-server.conf
+sed -i "335i memcached_servers = controller:11211" /etc/swift/proxy-server.conf
+sed -i "335i auth_type = password" /etc/swift/proxy-server.conf
+sed -i "335i project_domain_name = default" /etc/swift/proxy-server.conf
+sed -i "335i user_domain_name = default" /etc/swift/proxy-server.conf
+sed -i '/\# project_name = service/c project_name = service' /etc/swift/proxy-server.conf
+sed -i '/\# username = swift/c username = swift' /etc/swift/proxy-server.conf
+sed -i '/\# password = password/c password = swift' /etc/swift/proxy-server.conf
+sed -i '/\# delay_auth_decision = False/c # delay_auth_decision = True' /etc/swift/proxy-server.conf
+##[filter:cache]
+##use = egg:swift#memcache
+sed -i '/\# memcache_servers = 127.0.0.1:11211/c memcache_servers = controller:11211' /etc/swift/proxy-server.conf
+
+##Create and distribute initial rings
+cd /etc/swift
+swift-ring-builder account.builder create 10 3 1
+
+##Add each storage node to the ring
+##Object storage 1
+swift-ring-builder account.builder add --region 1 --zone 1 --ip 10.0.0.51 --port 6202 --device sdb --weight 100
+swift-ring-builder account.builder add --region 1 --zone 1 --ip 10.0.0.51 --port 6202 --device sdc --weight 100
+##Object storage 2
+swift-ring-builder account.builder add --region 1 --zone 2 --ip 10.0.0.52 --port 6202 --device sdb --weight 100
+swift-ring-builder account.builder add --region 1 --zone 2 --ip 10.0.0.52 --port 6202 --device sdc --weight 100
+
+##Verify the ring contents
+swift-ring-builder account.builder
+
+##Rebalance the ring
+swift-ring-builder account.builder rebalance

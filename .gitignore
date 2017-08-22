@@ -13,3 +13,6 @@ resources/sass/.sass-cache/
 *.vagrant
 controller/.vagrant/
 compute/.vagrant/
+*.vdi
+*.log
+*.backup

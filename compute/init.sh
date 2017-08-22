@@ -1,7 +1,7 @@
 #!/bin/bash
 
 echo '
-export PS1="\[\e[01;34m\]controller\[\e[0m\]\[\e[01;37m\]:\w\[\e[0m\]\[\e[00;37m\]\n\\$ \[\e[0m\]"
+export PS1="\[\e[01;34m\]compute\[\e[0m\]\[\e[01;37m\]:\w\[\e[0m\]\[\e[00;37m\]\n\\$ \[\e[0m\]"
 ' >> /home/ubuntu/.bashrc
 
 ## Configure name resolution
@@ -74,9 +74,7 @@ apt install -y neutron-linuxbridge-agent
 
 ##/etc/neutron/neutron.conf
 ##[database]
-##REVISAR!!!!
 sed -i "s|connection = sqlite:////var/lib/neutron/neutron.sqlite|#connection = sqlite:////var/lib/neutron/neutron.sqlite|" /etc/neutron/neutron.conf
-##sed -i '/\connection = sqlite:////var/lib/neutron/neutron.sqlite/c #connection = sqlite:////var/lib/neutron/neutron.sqlite' /etc/neutron/neutron.conf
 sed -i '/\#transport_url = <None>/c transport_url = rabbit://openstack:openstack_pass@controller' /etc/neutron/neutron.conf
 sed -i '/\#auth_strategy = keystone/c auth_strategy = keystone' /etc/neutron/neutron.conf
 sed -i '/\#auth_uri = <None>/c auth_uri = http://controller:5000' /etc/neutron/neutron.conf

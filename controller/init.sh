@@ -437,3 +437,51 @@ openstack image create "cirros" \
 
   chown www-data /var/lib/openstack-dashboard/secret_key
   service apache2 reload
+
+  ##Installing cinder
+  mysql --execute="CREATE DATABASE cinder;"
+  mysql --execute="GRANT ALL PRIVILEGES ON cinder.* TO 'cinder'@'localhost' IDENTIFIED BY 'cinder';"
+  mysql --execute="GRANT ALL PRIVILEGES ON cinder.* TO 'cinder'@'%' IDENTIFIED BY 'cinder';"
+  source /etc/profile.d/admin-openrc.sh
+  openstack user create --domain default --password cinder cinder
+  openstack role add --project service --user cinder admin
+  openstack service create --name cinderv2 --description "OpenStack Block Storage" volumev2
+  openstack service create --name cinderv3 --description "OpenStack Block Storage" volumev3
+  openstack endpoint create --region RegionOne volumev2 public http://controller:8776/v2/%\(project_id\)s
+  openstack endpoint create --region RegionOne volumev2 internal http://controller:8776/v2/%\(project_id\)s
+  openstack endpoint create --region RegionOne volumev2 admin http://controller:8776/v2/%\(project_id\)s
+  openstack endpoint create --region RegionOne volumev3 public http://controller:8776/v3/%\(project_id\)s
+  openstack endpoint create --region RegionOne volumev3 internal http://controller:8776/v3/%\(project_id\)s
+  openstack endpoint create --region RegionOne volumev3 admin http://controller:8776/v3/%\(project_id\)s
+
+  apt install -y cinder-api cinder-scheduler
+  ##/etc/cinder/cinder.conf
+  echo '[database]
+  connection = mysql+pymysql://cinder:cinder@controller/cinder' >> /etc/cinder/cinder.conf
+  sed -i "12i transport_url = rabbit://openstack:openstack_pass@controller" /etc/cinder/cinder.conf
+  echo '[keystone_authtoken]
+  auth_uri = http://controller:5000
+  auth_url = http://controller:35357
+  memcached_servers = controller:11211
+  auth_type = password
+  project_domain_name = default
+  user_domain_name = default
+  project_name = service
+  username = cinder
+  password = cinder' >> /etc/cinder/cinder.conf
+  sed -i "12i my_ip = 10.0.0.11" /etc/cinder/cinder.conf
+  echo '[oslo_concurrency]
+  lock_path = /var/lib/cinder/tmp' >> /etc/cinder/cinder.conf
+  /bin/sh -c "cinder-manage db sync" cinder
+
+  ##Finalize cinder installation
+  ##/etc/nova/nova.conf
+  ##[cinder]
+  sed -i '/\#os_region_name=<None>/c os_region_name = RegionOne' /etc/nova/nova.conf
+  service nova-api restart
+  service cinder-scheduler restart
+  service apache2 restart
+
+  ##Verify cinder operation
+  source /etc/profile.d/admin-openrc.sh
+  openstack volume service list

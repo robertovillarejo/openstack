@@ -222,29 +222,21 @@ openstack image create "cirros" \
   source /etc/profile.d/admin-openrc.sh
   openstack user create --domain default --password nova nova
   openstack role add --project service --user nova admin
-  openstack service create --name nova \
-    --description "OpenStack Compute" compute
-  openstack endpoint create --region RegionOne \
-    compute public http://controller:8774/v2.1
-  openstack endpoint create --region RegionOne \
-    compute internal http://controller:8774/v2.1
-  openstack endpoint create --region RegionOne \
-    compute admin http://controller:8774/v2.1
+  openstack service create --name nova --description "OpenStack Compute" compute
+  openstack endpoint create --region RegionOne compute public http://controller:8774/v2.1
+  openstack endpoint create --region RegionOne compute internal http://controller:8774/v2.1
+  openstack endpoint create --region RegionOne compute admin http://controller:8774/v2.1
   openstack user create --domain default --password placement placement
   openstack role add --project service --user placement admin
   openstack service create --name placement --description "Placement API" placement
   openstack endpoint create --region RegionOne placement public http://controller:8778
   openstack endpoint create --region RegionOne placement internal http://controller:8778
   openstack endpoint create --region RegionOne placement admin http://controller:8778
-  apt install -y nova-api nova-conductor nova-consoleauth \
-    nova-novncproxy nova-scheduler nova-placement-api
+  apt install -y nova-api nova-conductor nova-consoleauth nova-novncproxy nova-scheduler nova-placement-api
 
   ##/etc/nova/nova.conf
   ##[api_database]
   sed -i "s|connection=sqlite:////var/lib/nova/nova.sqlite|connection=mysql+pymysql://nova:nova@controller/nova_api|" /etc/nova/nova.conf
-  ##sed -i "3379i connection=mysql+pymysql://nova:nova@controller/nova_api" /etc/nova/nova.conf
-  ## BORRAR EL VALOR ANTERIOR
-  ## sed -i '/\connection=sqlite:////var/lib/nova/nova.sqlite/c connection=mysql+pymysql://nova:nova@controller/nova_api' /etc/nova/nova.conf
   ##[database]
   sed -i '/\#connection=<None>/c mysql+pymysql://nova:nova@controller/nova' /etc/nova/nova.conf
   ##[DEFAULT]
@@ -253,7 +245,6 @@ openstack image create "cirros" \
   sed -i '/\#auth_strategy=keystone/c auth_strategy=keystone' /etc/nova/nova.conf
   ##[keystone_authtoken]
   sed -i '/\#auth_uri=<None>/c auth_uri=http://controller:5000' /etc/nova/nova.conf
-  ##REVISAR!!!!!!!!!!
   sed -i "5610i auth_url  = http://controller:35357" /etc/nova/nova.conf
   sed -i '/\#memcached_servers=<None>/c memcached_servers=controller:11211' /etc/nova/nova.conf
   sed -i "5800i auth_type  = password" /etc/nova/nova.conf
@@ -423,3 +414,26 @@ openstack image create "cirros" \
   source /etc/profile.d/admin-openrc.sh
   openstack extension list --network
   openstack network agent list
+
+  ##Installing dashboard
+  apt install -y openstack-dashboard
+  ##/etc/openstack-dashboard/local_settings.py
+  sed -i "s|OPENSTACK_HOST = \"127.0.0.1\"|OPENSTACK_HOST = \"controller\"|" /etc/openstack-dashboard/local_settings.py
+  sed -i "s|#ALLOWED_HOSTS = \['horizon.example.com', \]|ALLOWED_HOSTS = \['*'\]|" /etc/openstack-dashboard/local_settings.py
+  sed -i "137i SESSION_ENGINE = 'django.contrib.sessions.backends.cache'" /etc/openstack-dashboard/local_settings.py
+  sed -i "s|        'LOCATION': '127.0.0.1:11211'|         'LOCATION': 'controller:11211'|" /etc/openstack-dashboard/local_settings.py
+  sed -i "s|OPENSTACK_KEYSTONE_URL = \"http:\/\/%s:5000\/v2.0\" % OPENSTACK_HOST|OPENSTACK_KEYSTONE_URL = \"http:\/\/%s:5000\/v3\" % OPENSTACK_HOST|" /etc/openstack-dashboard/local_settings.py
+  sed -i "s|#OPENSTACK_KEYSTONE_MULTIDOMAIN_SUPPORT = False|OPENSTACK_KEYSTONE_MULTIDOMAIN_SUPPORT = True|" /etc/openstack-dashboard/local_settings.py
+  sed -i "55i OPENSTACK_API_VERSIONS = { \"identity\": 3, \"image\": 2, \"volume\": 2, }" /etc/openstack-dashboard/local_settings.py
+  sed -i "s|#OPENSTACK_KEYSTONE_DEFAULT_DOMAIN = 'Default'|OPENSTACK_KEYSTONE_DEFAULT_DOMAIN = \"Default\"|" /etc/openstack-dashboard/local_settings.py
+  sed -i "s|OPENSTACK_KEYSTONE_DEFAULT_ROLE = \"_member_\"|OPENSTACK_KEYSTONE_DEFAULT_ROLE = \"user\"|" /etc/openstack-dashboard/local_settings.py
+  sed -i "s|    'enable_router': True,|    'enable_router': False,|" /etc/openstack-dashboard/local_settings.py
+  sed -i "s|    'enable_quotas': True,|    'enable_quotas': False,|" /etc/openstack-dashboard/local_settings.py
+  sed -i "s|    'enable_ipv6': True,|    'enable_ipv6': False,|" /etc/openstack-dashboard/local_settings.py
+  sed -i "s|    'enable_lb': True,|    'enable_lb': False,|" /etc/openstack-dashboard/local_settings.py
+  sed -i "s|    'enable_firewall': True,|    'enable_firewall': False,|" /etc/openstack-dashboard/local_settings.py
+  sed -i "s|    'enable_vpn': True,|    'enable_vpn': False,|" /etc/openstack-dashboard/local_settings.py
+  sed -i "s|    'enable_fip_topology_check': True,|    'enable_fip_topology_check': False,|" /etc/openstack-dashboard/local_settings.py
+
+  chown www-data /var/lib/openstack-dashboard/secret_key
+  service apache2 reload

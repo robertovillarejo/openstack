@@ -2,11 +2,14 @@
 
 echo '
 export PS1="\[\e[01;34m\]object1\[\e[0m\]\[\e[01;37m\]:\w\[\e[0m\]\[\e[00;37m\]\n\\$ \[\e[0m\]"
-' >> /home/ubuntu/.bashrc
+' >> /home/vagrant/.bashrc
 
 ## Configure name resolution
-
 sed -i "2i10.0.0.11       controller" /etc/hosts
+sed -i "2i10.0.0.31       compute" /etc/hosts
+sed -i "2i10.0.0.41       block" /etc/hosts
+sed -i "2i10.0.0.51       object1" /etc/hosts
+sed -i "2i10.0.0.52       object2" /etc/hosts
 
 apt update
 
@@ -113,3 +116,12 @@ chown -R swift:swift /srv/node
 mkdir -p /var/cache/swift
 chown -R root:swift /var/cache/swift
 chmod -R 775 /var/cache/swift
+
+cp /vagrant/account.ring.gz /etc/swift
+cp /vagrant/container.ring.gz /etc/swift
+cp /vagrant/object.ring.gz /etc/swift
+cp /vagrant/swift.conf /etc/swift
+
+chown -R root:swift /etc/swift
+
+swift-init all start

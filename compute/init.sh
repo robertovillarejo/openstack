@@ -5,9 +5,11 @@ export PS1="\[\e[01;34m\]compute\[\e[0m\]\[\e[01;37m\]:\w\[\e[0m\]\[\e[00;37m\]\
 ' >> /home/ubuntu/.bashrc
 
 ## Configure name resolution
-
 sed -i "2i10.0.0.11       controller" /etc/hosts
 sed -i "2i10.0.0.31       compute" /etc/hosts
+sed -i "2i10.0.0.41       block" /etc/hosts
+sed -i "2i10.0.0.51       object1" /etc/hosts
+sed -i "2i10.0.0.52       object2" /etc/hosts
 
 ## Configure NTP server (client)
 apt install -y chrony

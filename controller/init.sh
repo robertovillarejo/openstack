@@ -5,9 +5,11 @@ export PS1="\[\e[01;34m\]controller\[\e[0m\]\[\e[01;37m\]:\w\[\e[0m\]\[\e[00;37m
 ' >> /home/ubuntu/.bashrc
 
 ## Configure name resolution
-
 sed -i "2i10.0.0.11       controller" /etc/hosts
 sed -i "2i10.0.0.31       compute" /etc/hosts
+sed -i "2i10.0.0.41       block" /etc/hosts
+sed -i "2i10.0.0.51       object1" /etc/hosts
+sed -i "2i10.0.0.52       object2" /etc/hosts
 
 ## Configure NTP server (client)
 apt install -y chrony
@@ -495,7 +497,7 @@ apt-get install -y swift swift-proxy python-swiftclient python-keystoneclient py
 mkdir /etc/swift
 curl -o /etc/swift/proxy-server.conf https://git.openstack.org/cgit/openstack/swift/plain/etc/proxy-server.conf-sample?h=stable/newton
 
-##
+##/etc/swift/proxy-server.conf
 ##[DEFAULT]
 ##bind_port = 8080
 sed -i '/\# user = swift/c user = swift' /etc/swift/proxy-server.conf
@@ -508,8 +510,9 @@ sed -i '/\# account_autocreate = false/c account_autocreate = True' /etc/swift/p
 ##[filter:keystoneauth]
 sed -i '/\# \[filter:keystoneauth\]/c \[filter:keystoneauth\]' /etc/swift/proxy-server.conf
 sed -i '/\# use = egg:swift#keystoneauth/c use = egg:swift#keystoneauth' /etc/swift/proxy-server.conf
-sed -i '/\# operator_roles = admin, swiftoperator/c # operator_roles = admin,user' /etc/swift/proxy-server.conf
+sed -i '/\# operator_roles = admin, swiftoperator/c operator_roles = admin,user' /etc/swift/proxy-server.conf
 ##[filter:authtoken]
+sed -i '/\# \[filter:authtoken\]/c \[filter:authtoken\]' /etc/swift/proxy-server.conf
 sed -i '/\# paste.filter_factory = keystonemiddleware.auth_token:filter_factory/c paste.filter_factory = keystonemiddleware.auth_token:filter_factory' /etc/swift/proxy-server.conf
 sed -i "s|# auth_uri = http://keystonehost:5000|auth_uri = http://controller:5000|" /etc/swift/proxy-server.conf
 sed -i "s|# auth_url = http://keystonehost:35357|auth_url = http://controller:35357|" /etc/swift/proxy-server.conf
@@ -520,7 +523,7 @@ sed -i "335i user_domain_name = default" /etc/swift/proxy-server.conf
 sed -i '/\# project_name = service/c project_name = service' /etc/swift/proxy-server.conf
 sed -i '/\# username = swift/c username = swift' /etc/swift/proxy-server.conf
 sed -i '/\# password = password/c password = swift' /etc/swift/proxy-server.conf
-sed -i '/\# delay_auth_decision = False/c # delay_auth_decision = True' /etc/swift/proxy-server.conf
+sed -i '/\# delay_auth_decision = True/c delay_auth_decision = True' /etc/swift/proxy-server.conf
 ##[filter:cache]
 ##use = egg:swift#memcache
 sed -i '/\# memcache_servers = 127.0.0.1:11211/c memcache_servers = controller:11211' /etc/swift/proxy-server.conf
@@ -542,3 +545,60 @@ swift-ring-builder account.builder
 
 ##Rebalance the ring
 swift-ring-builder account.builder rebalance
+
+##Create container ring
+cd /etc/swift
+swift-ring-builder container.builder create 10 3 1
+
+##Add each storage node to the ring
+swift-ring-builder container.builder add --region 1 --zone 1 --ip 10.0.0.51 --port 6201 --device sdb --weight 100
+swift-ring-builder container.builder add --region 1 --zone 1 --ip 10.0.0.51 --port 6201 --device sdc --weight 100
+swift-ring-builder container.builder add --region 1 --zone 2 --ip 10.0.0.52 --port 6201 --device sdb --weight 100
+swift-ring-builder container.builder add --region 1 --zone 2 --ip 10.0.0.52 --port 6201 --device sdc --weight 100
+
+##Verify the ring contents
+swift-ring-builder container.builder
+
+##Rebalance the ring
+swift-ring-builder container.builder rebalance
+
+##Create object ring
+cd /etc/swift
+swift-ring-builder object.builder create 10 3 1
+
+##Add each storage node to the ring
+swift-ring-builder object.builder add --region 1 --zone 1 --ip 10.0.0.51 --port 6200 --device sdb --weight 100
+swift-ring-builder object.builder add --region 1 --zone 1 --ip 10.0.0.51 --port 6200 --device sdc --weight 100
+swift-ring-builder object.builder add --region 1 --zone 2 --ip 10.0.0.52 --port 6200 --device sdb --weight 100
+swift-ring-builder object.builder add --region 1 --zone 2 --ip 10.0.0.52 --port 6200 --device sdc --weight 100
+
+##Verify the ring contents
+swift-ring-builder object.builder
+
+##Rebalance the ring
+swift-ring-builder object.builder rebalance
+
+##Distribute ring configuration files
+## Copy the account.ring.gz, container.ring.gz, and object.ring.gz files to the /etc/swift directory on each storage node and any additional nodes running the proxy service.
+
+##Finalize installation
+curl -o /etc/swift/swift.conf https://git.openstack.org/cgit/openstack/swift/plain/etc/swift.conf-sample?h=stable/newton
+
+##/etc/swift/swift.conf
+##[swift-hash]
+sed -i "s|swift_hash_path_suffix = changeme|swift_hash_path_suffix = dads|" /etc/swift/swift.conf
+sed -i "s|swift_hash_path_prefix = changeme|swift_hash_path_prefix = infotec|" /etc/swift/swift.conf
+##[storage-policy:0]
+##name = Policy-0
+##default = yes
+
+service memcached restart
+service swift-proxy restart
+
+##Verify operation
+source /etc/profile.d/admin-openrc.sh
+swift stat
+openstack container create container1
+openstack object create container1 cirros-0.3.5-x86_64-disk.img
+openstack object list container1
+openstack object save container1 cirros-0.3.5-x86_64-disk.img

@@ -12,14 +12,15 @@ Once created and configured run `vagrant ssh` to login
 # Passwords
 
 | user          | password      |
-| ------------- |:-------------:|
+|:-------------:|:-------------:|
+| admin         | keystone      |
 | cinder (DB)   | cinder        |
 | cinder        | cinder        |
 | demo          | demo          |
 | glance (DB)   | glance        |
 | glance        | glance        |
 | keystone (DB) | keystone      |
-| metadata proxy| are neat      |
+| metadata proxy| openstack_pass|
 | neutron (DB)  | neutron       |
 | neutron       | neutron       |
 | nova (DB)     | nova          |

@@ -163,7 +163,6 @@ sed -i '/\#connection = <None>/c connection = mysql+pymysql://glance:glance@cont
 #[keystone_authtoken]
 sed -i '/\#auth_uri = <None>/c auth_uri = http:\/\/controller:5000' /etc/glance/glance-api.conf
 sed -i "3296i auth_url = http:\/\/controller:35357" /etc/glance/glance-api.conf
-##sed -i '/\#auth_url = <None>/c auth_url = http://controller:35357' /etc/glance/glance-api.conf
 sed -i '/\#memcached_servers = <None>/c memcached_servers = controller:11211' /etc/glance/glance-api.conf
 sed -i '/\#auth_type = <None>/c auth_type = password' /etc/glance/glance-api.conf
 sed -i "3450i project_domain_name  = default" /etc/glance/glance-api.conf
@@ -184,7 +183,6 @@ sed -i '/\#connection = <None>/c connection = mysql+pymysql://glance:glance@cont
 #[keystone_authtoken]
 sed -i '/\#auth_uri = <None>/c auth_uri = http:\/\/controller:5000' /etc/glance/glance-registry.conf
 sed -i "1219i auth_url = http:\/\/controller:35357" /etc/glance/glance-registry.conf
-##sed -i '/\#auth_url = <None>/c auth_url = http:\/\/controller:35357' /etc/glance/glance-registry.conf
 sed -i '/\#memcached_servers = <None>/c memcached_servers = controller:11211' /etc/glance/glance-registry.conf
 sed -i '/\#auth_type = <None>/c auth_type = password' /etc/glance/glance-registry.conf
 sed -i "1373i project_domain_name  = default" /etc/glance/glance-registry.conf
@@ -602,6 +600,7 @@ service swift-proxy restart
 
 ##Verify operation
 source /etc/profile.d/admin-openrc.sh
+cd /home/ubuntu
 swift stat
 openstack container create container1
 openstack object create container1 cirros-0.3.5-x86_64-disk.img

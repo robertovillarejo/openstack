@@ -35,8 +35,8 @@ sed -i '/#firewall_driver=<None>/c firewall_driver = nova.virt.firewall.NoopFire
 ##[api]
 sed -i '/#auth_strategy=keystone/c auth_strategy = keystone' /etc/nova/nova.conf
 ##[keystone_authtoken]
-sed -i '/#auth_uri=<None>/c auth_uri = http://controller:5000' /etc/nova/nova.conf
-sed -i "5610i auth_url = http://controller:35357" /etc/nova/nova.conf
+sed -i '/#auth_uri=<None>/c auth_uri = http:\/\/controller:5000' /etc/nova/nova.conf
+sed -i "5610i auth_url = http:\/\/controller:35357" /etc/nova/nova.conf
 sed -i '/#memcached_servers=<None>/c memcached_servers = controller:11211' /etc/nova/nova.conf
 sed -i "5610i auth_type = password" /etc/nova/nova.conf
 sed -i "5610i project_domain_name = default" /etc/nova/nova.conf
@@ -48,9 +48,9 @@ sed -i "5610i password = nova" /etc/nova/nova.conf
 sed -i '/#enabled=true/c enabled = True' /etc/nova/nova.conf
 sed -i '/#vncserver_listen=127.0.0.1/c vncserver_listen = 0.0.0.0' /etc/nova/nova.conf
 sed -i '/#vncserver_proxyclient_address=127.0.0.1/c vncserver_proxyclient_address = $my_ip' /etc/nova/nova.conf
-sed -i "s|#novncproxy_base_url=http://127.0.0.1:6080/vnc_auto.html|novncproxy_base_url = http://controller:6080/vnc_auto.html|" /etc/nova/nova.conf
+sed -i "s|#novncproxy_base_url=http:\/\/127.0.0.1:6080\/vnc_auto.html|novncproxy_base_url = http:\/\/controller:6080\/vnc_auto.html|" /etc/nova/nova.conf
 ##[glance]
-sed -i '/#api_servers=<None>/c api_servers = http://controller:9292' /etc/nova/nova.conf
+sed -i '/#api_servers=<None>/c api_servers = http:\/\/controller:9292' /etc/nova/nova.conf
 ##[oslo_concurrency]
 sed -i "s|lock_path=/var/lock/nova|lock_path = /var/lib/nova/tmp|" /etc/nova/nova.conf
 ##[placement]
@@ -59,12 +59,12 @@ sed -i "8179i project_domain_name = Default" /etc/nova/nova.conf
 sed -i "8173i project_name = service" /etc/nova/nova.conf
 sed -i "8155i auth_type = password" /etc/nova/nova.conf
 sed -i "8208i user_domain_name = Default" /etc/nova/nova.conf
-sed -i "8162i auth_url = http://controller:35357/v3" /etc/nova/nova.conf
+sed -i "8162i auth_url = http:\/\/controller:35357\/v3" /etc/nova/nova.conf
 sed -i "8203i username = placement" /etc/nova/nova.conf
 sed -i "8213i password = placement" /etc/nova/nova.conf
 
 ##Determine whether your compute node supports hardware acceleration for virtual machines
-set hardware_acceleration=$(egrep -c '(vmx|svm)' /proc/cpuinfo)
+export hardware_acceleration=$(egrep -c '(vmx|svm)' /proc/cpuinfo)
 if [ "$hardware_acceleration" == "0" ]; then
   sed -i "s|virt_type=kvm|virt_type=qemu|" /etc/nova/nova-compute.conf
 fi
@@ -79,8 +79,9 @@ apt install -y neutron-linuxbridge-agent
 sed -i "s|connection = sqlite:////var/lib/neutron/neutron.sqlite|#connection = sqlite:////var/lib/neutron/neutron.sqlite|" /etc/neutron/neutron.conf
 sed -i '/\#transport_url = <None>/c transport_url = rabbit://openstack:openstack_pass@controller' /etc/neutron/neutron.conf
 sed -i '/\#auth_strategy = keystone/c auth_strategy = keystone' /etc/neutron/neutron.conf
-sed -i '/\#auth_uri = <None>/c auth_uri = http://controller:5000' /etc/neutron/neutron.conf
-sed -i "769i auth_url = http://controller:35357" /etc/neutron/neutron.conf
+sed -i '/\#auth_uri = <None>/c auth_uri = http:\/\/controller:5000' /etc/neutron/neutron.conf
+sed -i '/\#auth_url=<None>/c auth_url = http:\/\/controller:35357' /etc/neutron/neutron.conf
+## sed -i "769i auth_url = http:\/\/controller:35357" /etc/neutron/neutron.conf
 sed -i '/\#memcached_servers = <None>/c memcached_servers = controller:11211' /etc/neutron/neutron.conf
 sed -i '/\#auth_type = <None>/c auth_type = password' /etc/neutron/neutron.conf
 sed -i "769i project_domain_name = default" /etc/neutron/neutron.conf
@@ -99,6 +100,10 @@ sed -i '/\#firewall_driver = <None>/c firewall_driver = neutron.agent.linux.ipta
 
 ##Configure the Compute service to use the Networking service
 ##/etc/nova/nova.conf
+sed -i '/\#url=http:\/\/127.0.0.1:9696/c url = http:\/\/controller:9696' /etc/nova/nova.conf
+##auth_url
+##auth_type=password
+
 echo '[neutron]
 url = http://controller:9696
 auth_url = http://controller:35357
@@ -108,7 +113,7 @@ user_domain_name = default
 region_name = RegionOne
 project_name = service
 username = neutron
-password = neutron' > /etc/nova/nova.conf
+password = neutron' >> /etc/nova/nova.conf
 
 ##Finalize Installation
 service nova-compute restart

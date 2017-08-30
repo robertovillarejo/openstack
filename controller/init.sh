@@ -161,8 +161,8 @@ apt install -y glance
 #[database]
 sed -i '/\#connection = <None>/c connection = mysql+pymysql://glance:glance@controller/glance' /etc/glance/glance-api.conf
 #[keystone_authtoken]
-sed -i '/\#auth_uri = <None>/c auth_uri = http://controller:5000' /etc/glance/glance-api.conf
-sed -i "3296i auth_url = http://controller:35357" /etc/glance/glance-api.conf
+sed -i '/\#auth_uri = <None>/c auth_uri = http:\/\/controller:5000' /etc/glance/glance-api.conf
+sed -i "3296i auth_url = http:\/\/controller:35357" /etc/glance/glance-api.conf
 ##sed -i '/\#auth_url = <None>/c auth_url = http://controller:35357' /etc/glance/glance-api.conf
 sed -i '/\#memcached_servers = <None>/c memcached_servers = controller:11211' /etc/glance/glance-api.conf
 sed -i '/\#auth_type = <None>/c auth_type = password' /etc/glance/glance-api.conf
@@ -178,12 +178,13 @@ sed -i '/\#stores = file,http/c stores = file,http' /etc/glance/glance-api.conf
 sed -i '/\#default_store = file/c default_store = file' /etc/glance/glance-api.conf
 sed -i "2294i filesystem_store_datadir = /var/lib/glance/images" /etc/glance/glance-api.conf
 
-#glance-registry.conf
+#/etc/glance/glance-registry.conf
 #[database]
 sed -i '/\#connection = <None>/c connection = mysql+pymysql://glance:glance@controller/glance' /etc/glance/glance-registry.conf
 #[keystone_authtoken]
-sed -i '/\#auth_uri = <None>/c auth_uri = http://controller:5000' /etc/glance/glance-registry.conf
-sed -i '/\#auth_url = <None>/c auth_url = http://controller:35357' /etc/glance/glance-registry.conf
+sed -i '/\#auth_uri = <None>/c auth_uri = http:\/\/controller:5000' /etc/glance/glance-registry.conf
+sed -i "1219i auth_url = http:\/\/controller:35357" /etc/glance/glance-registry.conf
+##sed -i '/\#auth_url = <None>/c auth_url = http:\/\/controller:35357' /etc/glance/glance-registry.conf
 sed -i '/\#memcached_servers = <None>/c memcached_servers = controller:11211' /etc/glance/glance-registry.conf
 sed -i '/\#auth_type = <None>/c auth_type = password' /etc/glance/glance-registry.conf
 sed -i "1373i project_domain_name  = default" /etc/glance/glance-registry.conf
@@ -225,6 +226,7 @@ openstack service create --name nova --description "OpenStack Compute" compute
 openstack endpoint create --region RegionOne compute public http://controller:8774/v2.1
 openstack endpoint create --region RegionOne compute internal http://controller:8774/v2.1
 openstack endpoint create --region RegionOne compute admin http://controller:8774/v2.1
+
 openstack user create --domain default --password placement placement
 openstack role add --project service --user placement admin
 openstack service create --name placement --description "Placement API" placement
@@ -237,21 +239,21 @@ apt install -y nova-api nova-conductor nova-consoleauth nova-novncproxy nova-sch
 ##[api_database]
 sed -i "s|connection=sqlite:////var/lib/nova/nova.sqlite|connection=mysql+pymysql://nova:nova@controller/nova_api|" /etc/nova/nova.conf
 ##[database]
-sed -i '/\#connection=<None>/c mysql+pymysql://nova:nova@controller/nova' /etc/nova/nova.conf
+sed -i '/\#connection=<None>/c connection=mysql+pymysql://nova:nova@controller/nova' /etc/nova/nova.conf
 ##[DEFAULT]
 sed -i '/\#transport_url=<None>/c transport_url=rabbit://openstack:openstack_pass@controller' /etc/nova/nova.conf
 ##[api]
 sed -i '/\#auth_strategy=keystone/c auth_strategy=keystone' /etc/nova/nova.conf
 ##[keystone_authtoken]
-sed -i '/\#auth_uri=<None>/c auth_uri=http://controller:5000' /etc/nova/nova.conf
-sed -i "5610i auth_url  = http://controller:35357" /etc/nova/nova.conf
+sed -i '/\#auth_uri=<None>/c auth_uri=http:\/\/controller:5000' /etc/nova/nova.conf
+sed -i "5610i auth_url  = http:\/\/controller:35357" /etc/nova/nova.conf
 sed -i '/\#memcached_servers=<None>/c memcached_servers=controller:11211' /etc/nova/nova.conf
-sed -i "5800i auth_type  = password" /etc/nova/nova.conf
-sed -i "5805i project_domain_name = default" /etc/nova/nova.conf
-sed -i "5805i user_domain_name = default" /etc/nova/nova.conf
-sed -i "5805i project_name = service" /etc/nova/nova.conf
-sed -i "5805i username = nova" /etc/nova/nova.conf
-sed -i "5805i password = nova" /etc/nova/nova.conf
+sed -i "5802i auth_type  = password" /etc/nova/nova.conf
+sed -i "5806i project_domain_name = default" /etc/nova/nova.conf
+sed -i "5806i user_domain_name = default" /etc/nova/nova.conf
+sed -i "5806i project_name = service" /etc/nova/nova.conf
+sed -i "5806i username = nova" /etc/nova/nova.conf
+sed -i "5806i password = nova" /etc/nova/nova.conf
 ##[DEFAULT]
 sed -i '/\#my_ip=10.222.99.93/c my_ip=10.0.0.11' /etc/nova/nova.conf
 sed -i '/\#use_neutron=true/c use_neutron=True' /etc/nova/nova.conf
@@ -259,20 +261,21 @@ sed -i '/\#firewall_driver=<None>/c firewall_driver=nova.virt.firewall.NoopFirew
 ##[vnc]
 sed -i '/\#enabled=true/c enabled=true' /etc/nova/nova.conf
 sed -i '/\#vncserver_listen=127.0.0.1/c vncserver_listen=$my_ip' /etc/nova/nova.conf
-sed -i '/\#vncserver_proxyclient_address=127.0.0.1/c #vncserver_proxyclient_address=$my_ip' /etc/nova/nova.conf
+sed -i '/\#vncserver_proxyclient_address=127.0.0.1/c vncserver_proxyclient_address=$my_ip' /etc/nova/nova.conf
 ##[glance]
-sed -i '/\#api_servers=<None>/c #api_servers=http://controller:9292' /etc/nova/nova.conf
+sed -i '/\#api_servers=<None>/c api_servers=http:\/\/controller:9292' /etc/nova/nova.conf
 ##[oslo_concurrency]
 sed -i "s|lock_path=/var/lock/nova|lock_path=/var/lib/nova/tmp|" /etc/nova/nova.conf
+sed -i "s|log_dir=/var/log/nova|#log_dir=/var/log/nova|" /etc/nova/nova.conf
 ##[placement]
 sed -i '/\os_region_name = openstack/c os_region_name = RegionOne' /etc/nova/nova.conf
-sed -i "8172i project_domain_name = Default" /etc/nova/nova.conf
-sed -i "8166i project_name = service" /etc/nova/nova.conf
-sed -i "8148i auth_type = password" /etc/nova/nova.conf
-sed -i "8198i user_domain_name = Default" /etc/nova/nova.conf
-sed -i "8154i auth_url = http://controller:35357/v3" /etc/nova/nova.conf
-sed -i "8192i username = placement" /etc/nova/nova.conf
-sed -i "8201i password = placement" /etc/nova/nova.conf
+sed -i "8180i project_domain_name = Default" /etc/nova/nova.conf
+sed -i "8174i project_name = service" /etc/nova/nova.conf
+sed -i "8156i auth_type = password" /etc/nova/nova.conf
+sed -i "8206i user_domain_name = Default" /etc/nova/nova.conf
+sed -i "8162i auth_url = http:\/\/controller:35357\/v3" /etc/nova/nova.conf
+sed -i "8200i username = placement" /etc/nova/nova.conf
+sed -i "8209i password = placement" /etc/nova/nova.conf
 
 ## Populating the nova databases
 /bin/sh -c "nova-manage api_db sync" nova
@@ -292,6 +295,8 @@ service nova-novncproxy restart
 ## Add the compute node to the cell database
 source /etc/profile.d/admin-openrc.sh
 openstack hypervisor list
+## Discover compute hosts
+/bin/sh -c "nova-manage cell_v2 discover_hosts --verbose" nova
 
 ##Verify operation
 source /etc/profile.d/admin-openrc.sh
@@ -326,8 +331,8 @@ sed -i '/\#allow_overlapping_ips = false/c allow_overlapping_ips = true' /etc/ne
 sed -i '/\#transport_url = <None>/c transport_url = rabbit://openstack:openstack_pass@controller' /etc/neutron/neutron.conf
 sed -i '/\#auth_strategy = keystone/c auth_strategy = keystone' /etc/neutron/neutron.conf
 ##[keystone_authtoken]
-sed -i '/\#auth_uri = <None>/c auth_uri = http://controller:5000' /etc/neutron/neutron.conf
-sed -i "860i auth_url = http://controller:35357" /etc/neutron/neutron.conf
+sed -i '/\#auth_uri = <None>/c auth_uri = http:\/\/controller:5000' /etc/neutron/neutron.conf
+sed -i "860i auth_url = http:\/\/controller:35357" /etc/neutron/neutron.conf
 sed -i '/\#memcached_servers = <None>/c memcached_servers = controller:11211' /etc/neutron/neutron.conf
 sed -i '/\#auth_type = <None>/c auth_type = password' /etc/neutron/neutron.conf
 sed -i "1054i project_domain_name = default" /etc/neutron/neutron.conf
@@ -339,7 +344,7 @@ sed -i "1054i password = neutron" /etc/neutron/neutron.conf
 sed -i '/\#notify_nova_on_port_status_changes = true/c notify_nova_on_port_status_changes = true' /etc/neutron/neutron.conf
 sed -i '/\#notify_nova_on_port_data_changes = true/c notify_nova_on_port_data_changes = true' /etc/neutron/neutron.conf
 ##[nova]
-sed -i '/\#auth_url = <None>/c auth_url = http://controller:35357' /etc/neutron/neutron.conf
+sed -i '/\#auth_url = <None>/c auth_url = http:\/\/controller:35357' /etc/neutron/neutron.conf
 ##auth_type = password was set before in [keystone_authtoken]
 sed -i '/\#project_domain_name = <None>/c project_domain_name = default' /etc/neutron/neutron.conf
 sed -i '/\#user_domain_name = <None>/c user_domain_name = default' /etc/neutron/neutron.conf
@@ -389,8 +394,8 @@ sed -i '/\#metadata_proxy_shared_secret =/c metadata_proxy_shared_secret = opens
 
 ##/etc/nova/nova.conf
 ##[neutron]
-sed -i "s|#url=http://127.0.0.1:9696|url = http://controller:9696|" /etc/nova/nova.conf
-sed -i '/\#auth_url=<None>/c auth_url = http://controller:35357' /etc/nova/nova.conf
+sed -i "s|#url=http:\/\/127.0.0.1:9696|url = http:\/\/controller:9696|" /etc/nova/nova.conf
+sed -i '/\#auth_url=<None>/c auth_url = http:\/\/controller:35357' /etc/nova/nova.conf
 sed -i '/\#auth_type=<None>/c auth_type = password' /etc/nova/nova.conf
 sed -i '/\#project_domain_name=<None>/c project_domain_name = default' /etc/nova/nova.conf
 sed -i '/\#user_domain_name=<None>/c user_domain_name = default' /etc/nova/nova.conf
@@ -514,8 +519,8 @@ sed -i '/\# operator_roles = admin, swiftoperator/c operator_roles = admin,user'
 ##[filter:authtoken]
 sed -i '/\# \[filter:authtoken\]/c \[filter:authtoken\]' /etc/swift/proxy-server.conf
 sed -i '/\# paste.filter_factory = keystonemiddleware.auth_token:filter_factory/c paste.filter_factory = keystonemiddleware.auth_token:filter_factory' /etc/swift/proxy-server.conf
-sed -i "s|# auth_uri = http://keystonehost:5000|auth_uri = http://controller:5000|" /etc/swift/proxy-server.conf
-sed -i "s|# auth_url = http://keystonehost:35357|auth_url = http://controller:35357|" /etc/swift/proxy-server.conf
+sed -i "s|# auth_uri = http:\/\/keystonehost:5000|auth_uri = http:\/\/controller:5000|" /etc/swift/proxy-server.conf
+sed -i "s|# auth_url = http:\/\/keystonehost:35357|auth_url = http:\/\/controller:35357|" /etc/swift/proxy-server.conf
 sed -i "335i memcached_servers = controller:11211" /etc/swift/proxy-server.conf
 sed -i "335i auth_type = password" /etc/swift/proxy-server.conf
 sed -i "335i project_domain_name = default" /etc/swift/proxy-server.conf

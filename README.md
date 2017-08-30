@@ -53,5 +53,5 @@ Once created and configured run `vagrant ssh` to login
 |            |      | sdb 5 GB fixed    | enp0s3       | public  | dhcp         |
 |            |      | sdc 5 GB fixed    |              |         |              |
 
-In this infraestructure example each node has connection to the Internet for automatic installation purposes. However, should be similar to the image.
+In this infraestructure example each node has connection to the Internet for automatic installation purposes. However, should be similar to the image.  
 ![Network layout](https://docs.openstack.org/ocata/install-guide-ubuntu/_images/networklayout.png)
